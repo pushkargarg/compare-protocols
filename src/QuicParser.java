@@ -21,26 +21,28 @@ import org.jnetpcap.util.PcapPacketArrayList;
 
 public class QuicParser {
 
-	public static String outFileName_handshake = "googleQUIC_handshake.csv";
-	public static String outFileName_reconnection = "googleQUIC_reconnection.csv";
-	public static String outFileName = "googleQUIC.csv";
+	public static String outFileName_handshake = "imageSearchQUIC_handshake.csv";
+	public static String outFileName_reconnection = "imageSearchQUIC_reconnection.csv";
+	public static String outFileName = "imageSearchQUIC.csv";
+
 	public static void main(String args[]) throws UnsupportedEncodingException {
-		
+
 		if (args.length < 0) {
 			System.out.println("Pcap File name not specified!!");
 			System.exit(0);
 		}
-		
+
 		CreateCSV outFile = new CreateCSV(outFileName);
 		CreateCSV outFile_handshake = new CreateCSV(outFileName_handshake);
 		CreateCSV outFile_reconnection = new CreateCSV(outFileName_reconnection);
-		
+
+		int counter = 0;
+		long timeDiff = 0;
 		Set<String> clients = new HashSet<String>();
 		Set<String> servers = new HashSet<String>();
 		Map<String, Connection> connections = new HashMap<String, Connection>();
 		List<PacketInfo> packetsInfo = new ArrayList<PacketInfo>();
-		PcapPacketArrayList packets = readOfflineFiles(
-				"C:\\Users\\shweta\\Documents\\Study Material\\Networks\\Project\\captures\\FinalCaptures\\googleQUIC.pcap");
+		PcapPacketArrayList packets = readOfflineFiles("C:\\Users\\shweta\\Documents\\Study Material\\Networks\\Project\\captures\\FinalCaptures\\imageSearchQUIC.pcap");
 		final Udp udp = new Udp();
 		Ip4 ip = new Ip4();
 		Payload pl = new Payload();
@@ -57,7 +59,7 @@ public class QuicParser {
 					PacketInfo packetInfo = new PacketInfo();
 					System.out.println("Frame number is : " + packet.getFrameNumber());
 					System.out.println("Dst port is : " + dstPort);
-		
+
 					///////////////////////////////////
 
 					packet.getHeader(pl);
@@ -65,7 +67,8 @@ public class QuicParser {
 					System.out.printf("payload length=%d\n", pl.getLength());
 					byte[] payloadContent = pl.getByteArray(0, pl.size());
 					String strPayloadContent = new String(payloadContent);
-					//System.out.println("payload content = [" + strPayloadContent + "]");
+					// System.out.println("payload content = [" +
+					// strPayloadContent + "]");
 
 					//////////////////////////////////////////
 					if (packet.hasHeader(ip)) {
@@ -79,6 +82,14 @@ public class QuicParser {
 					long timeStamp = packet.getCaptureHeader().timestampInMillis();
 					System.out.println("Timestamp is : " + timeStamp);
 
+					if(counter == 0){
+						timeDiff = timeStamp;
+						timeStamp = 0;
+						counter++;
+					}
+					else{
+						timeStamp -= timeDiff;
+					}
 					Byte publicFlag = packet.getByte(42);
 					String publicFlags = Integer.toBinaryString(publicFlag);
 					System.out.println("Public flags are: " + publicFlags);
@@ -141,6 +152,7 @@ public class QuicParser {
 					packetInfo.setDstPort(dstPort);
 					packetInfo.setSrcPort(srcPort);
 					packetInfo.setDestinationIP(destinationIP);
+					packetInfo.setSourceIP(sourceIP);
 					packetInfo.setTimeStamp(timeStamp);
 					packetInfo.setCid(cid);
 					packetInfo.setSeqNo(seqNo);
@@ -256,29 +268,23 @@ public class QuicParser {
 						chloTagStart += 2;
 					}
 					System.out.println("Offset bit are : " + offsetBit1 + offsetBit2 + offsetBit3);
-					String offsetBits = Integer.toString(offsetBit1) + Integer.toString(offsetBit2) + Integer.toString(offsetBit3);
-					if (offsetBits.equals("000")){
+					String offsetBits = Integer.toString(offsetBit1) + Integer.toString(offsetBit2)
+							+ Integer.toString(offsetBit3);
+					if (offsetBits.equals("000")) {
 						chloTagStart += 0;
-					}
-					else if(offsetBits.equals("001")){
+					} else if (offsetBits.equals("001")) {
 						chloTagStart += 2;
-					}
-					else if(offsetBits.equals("010")){
+					} else if (offsetBits.equals("010")) {
 						chloTagStart += 3;
-					}
-					else if(offsetBits.equals("100")){
+					} else if (offsetBits.equals("100")) {
 						chloTagStart += 4;
-					}
-					else if(offsetBits.equals("110")){
+					} else if (offsetBits.equals("110")) {
 						chloTagStart += 5;
-					}
-					else if(offsetBits.equals("101")){
+					} else if (offsetBits.equals("101")) {
 						chloTagStart += 6;
-					}
-					else if(offsetBits.equals("011")){
+					} else if (offsetBits.equals("011")) {
 						chloTagStart += 7;
-					}
-					else if(offsetBits.equals("111")){
+					} else if (offsetBits.equals("111")) {
 						chloTagStart += 8;
 					}
 					if (offsetBit1 == 0) {
@@ -339,7 +345,7 @@ public class QuicParser {
 								System.out.println("SCID value is : " + scidValue);
 								packetInfo.setSCID(scidValue);
 							}
-							//outFile.writeToFile(packetInfo);
+							// outFile.writeToFile(packetInfo);
 							conn.clientToServerPackets.add(packetInfo);
 						} else {
 							Connection conn = connections.get(sourceIP + destinationIP);
@@ -353,9 +359,19 @@ public class QuicParser {
 							} else {
 								if (chloTag.equals("52454A00")) {
 									System.out.println("Rejection packet!!");
+									int scfgLoc = (strPayloadContent.indexOf("SCFG") + 42);
+									scfgLoc = (strPayloadContent.indexOf("SCFG", (scfgLoc + 1)) + 42);
+									int scidLoc = (strPayloadContent.indexOf("SCID") + 42);
+									int numSerCfgTag = (int) getDetails(packet, scfgLoc + 4, scfgLoc + 4);
+									int offSet = (int) getDetails(packet, scidLoc + 5, scidLoc + 5);
+									offSet = offSet << 8;
+									offSet += getDetails(packet, scidLoc + 4, scidLoc + 4);
+									int targetLoc = ((scfgLoc + (numSerCfgTag + 1) * 8) + offSet);
+
+									String scidVal = getTags(packet, targetLoc - 16, targetLoc - 1);
+									packetInfo.setSCID(scidVal);
 									packetInfo.setRej(true);
 								}
-								//outFile.writeToFile(packetInfo);
 								conn.serverToClientPackets.add(packetInfo);
 							}
 						}
@@ -371,7 +387,7 @@ public class QuicParser {
 						} else {
 							conn.serverToClientPackets.add(packetInfo);
 						}
-						//outFile.writeToFile(packetInfo);
+						// outFile.writeToFile(packetInfo);
 					}
 					outFile.writeToFile(packetInfo);
 					packetsInfo.add(packetInfo);
@@ -380,59 +396,58 @@ public class QuicParser {
 
 			}
 		}
-		System.out.println("number of quic packets = " + packetsInfo.size());
-		Connection conn = connections.get("10.0.2.15216.58.217.164");
-		List<PacketInfo> connPackets = conn.getClientToServerPackets();
-		System.out.println("number of client to server packets : " + connPackets.size());
-		System.out.println("number of server to client packets : " + conn.getServerToClientPackets().size());
-		for (int i = 0; i < connPackets.size(); i++) {
-			System.out.println("Frame no. is : " + connPackets.get(i).frameNo);
-		}
-		
+//		System.out.println("number of quic packets = " + packetsInfo.size());
+//		Connection conn = connections.get("10.0.2.15216.58.217.164");
+//		List<PacketInfo> connPackets = conn.getClientToServerPackets();
+//		System.out.println("number of client to server packets : " + connPackets.size());
+//		System.out.println("number of server to client packets : " + conn.getServerToClientPackets().size());
+//		for (int i = 0; i < connPackets.size(); i++) {
+//			System.out.println("Frame no. is : " + connPackets.get(i).frameNo);
+//		}
+
 		long lastPacketTime = 0;
 		boolean reconnFlag = false;
 		boolean handshakeFlag = false;
 		int chloHandshake = 0;
 		int handshakeCount = 0;
 		int reconnCount = 0;
-		for(PacketInfo pkt : packetsInfo){
+		for (PacketInfo pkt : packetsInfo) {
 			outFile.writeToFile(pkt);
-			if(handshakeFlag && !reconnFlag){
+			if (handshakeFlag && !reconnFlag) {
 				outFile_handshake.writeToFile(pkt);
 			}
-			if(reconnFlag){
+			if (reconnFlag) {
 				outFile_reconnection.writeToFile(pkt);
 			}
-			if(!handshakeFlag){
-				if(pkt.isChlo){
-					if(pkt.getSCID()==null){
+			if (!handshakeFlag) {
+				if (pkt.isChlo) {
+					if (pkt.getSCID() == null) {
 						outFile_handshake.writeToFile(pkt);
 						chloHandshake++;
 						handshakeCount++;
-					}
-					else if(chloHandshake==1 && pkt.getSCID()!= null){
+					} else if (chloHandshake == 1 && pkt.getSCID() != null) {
 						outFile_handshake.writeToFile(pkt);
 						chloHandshake++;
 						handshakeCount++;
 						handshakeFlag = true;
 					}
 				}
-				if(pkt.isRej){
-					if(chloHandshake==1){
+				if (pkt.isRej) {
+					if (chloHandshake == 1) {
 						outFile_handshake.writeToFile(pkt);
 						handshakeCount++;
 					}
 				}
 			}
-			if(!reconnFlag){
-				if(pkt.isChlo){
-					if(pkt.getSCID()!=null && pkt.getTimeStamp()-lastPacketTime > 30000){
+			if (!reconnFlag) {
+				if (pkt.isChlo) {
+					if (pkt.getSCID() != null && pkt.getTimeStamp() - lastPacketTime > 30000) {
 						outFile_reconnection.writeToFile(pkt);
 						reconnFlag = true;
 						reconnCount++;
 					}
 				}
-			}		
+			}
 			lastPacketTime = pkt.getTimeStamp();
 		}
 
