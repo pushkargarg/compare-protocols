@@ -20,6 +20,7 @@
 			var w = 400;
 			var h = 400;
 			var padding = 30;
+            
 
 			var handshake = d3.select("#http")
 						.append("svg")
@@ -45,7 +46,8 @@
 					.scale(xScale)
 					.ticks(0)
 					.orient("right");
-
+                 
+                
 				var yAxis = d3.svg.axis()
 					.scale(yScale)
 					.ticks(0)
@@ -64,6 +66,15 @@
 					.attr("class","axis")
 					.attr("transform", "translate("+yAxisLoc+",0)")
 					.call(yAxis);
+                handshake.append("text")
+                    .attr("text-anchor", "middle")
+                    .attr("transform", "translate("+ (xAxisLoc+(padding/2)) +","+(h/2)+")rotate(90)")
+                    .text("Server")
+                    
+                handshake.append("text")
+                    .attr("text-anchor", "middle")
+                    .attr("transform", "translate("+ (yAxisLoc-(padding/2)) +","+(h/2)+")rotate(-90)")
+                    .text("Client")    
 
 				drawTCPHandshake(dataset,handshake,xAxisLoc,yAxisLoc);
 			});
