@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>D3 Test</title>
+		<script src="//d3js.org/d3.v3.min.js"></script>
+		<link rel="stylesheet" type="text/css" href="./css/styles.css">
+	</head>
+	<body>
+		<div id="http" class="protocol" align="left" color="red"></div>
+		<div class="protocol" align="left" color="blue"></div>
+		<div class="protocol" align="left" color="green"></div>
+		<script type="text/javascript">
+			
+		drawHTTPConnection();
+		drawQUICConnection();
+
+		function drawHTTPConnection(){
+			var dataset = [];
+			var w = 400;
+			var h = 400;
+			var padding = 30;
+
+			var handshake = d3.select("#http")
+						.append("svg")
+						.attr("display","block")
+						.attr("x",100)
+						.attr("y",50)
+						.attr("width",w)
+						.attr("height",h);
+			d3.csv("./files/http.csv",function(data){
+				dataset = data;
+				console.log(dataset.length);
+				
+				//making two parallel axes
+				var xScale = d3.scale.linear()
+					.domain([30,0])
+					.range([h-padding,padding]);
+
+				var yScale = d3.scale.linear()
+					.domain([30,0])
+					.range([h-padding,padding]);
+
+				var xAxis = d3.svg.axis()
+					.scale(xScale)
+					.ticks(0)
+					.orient("right");
+
+				var yAxis = d3.svg.axis()
+					.scale(yScale)
+					.ticks(0)
+					.orient("left");
+
+				xAxisLoc = w-2*padding;
+				yAxisLoc = 2*padding;
+
+				//create two vertical axes for both client and server
+				handshake.append("g")
+					.attr("class","axis")
+					.attr("transform", "translate(" + (xAxisLoc) + "," + 0 + ")")
+					.call(xAxis);
+
+				handshake.append("g")
+					.attr("class","axis")
+					.attr("transform", "translate("+yAxisLoc+",0)")
+					.call(yAxis);
+
+				drawTCPHandshake(dataset,handshake,xAxisLoc,yAxisLoc);
+			});
+		}
+
+		function drawQUICConnection(){
+			var dataset = [];
+			var w = 400;
+			var h = 400;
+			var padding = 30;
+
+			var handshake = d3.select("#http")
+						.append("svg")
+						.attr("display","block")
+						.attr("x",100)
+						.attr("y",50)
+						.attr("width",w)
+						.attr("height",h);
+			d3.csv("./files/googleQUIC_handshake.csv",function(data){
+				dataset = data;
+				console.log(dataset.length);
+				
+				//making two parallel axes
+				var xScale = d3.scale.linear()
+					.domain([30,0])
+					.range([h-padding,padding]);
+
+				var yScale = d3.scale.linear()
+					.domain([30,0])
+					.range([h-padding,padding]);
+
+				var xAxis = d3.svg.axis()
+					.scale(xScale)
+					.ticks(0)
+					.orient("right");
+
+				var yAxis = d3.svg.axis()
+					.scale(yScale)
+					.ticks(0)
+					.orient("left");
+
+				xAxisLoc = w-2*padding;
+				yAxisLoc = 2*padding;
+
+				//create two vertical axes for both client and server
+				handshake.append("g")
+					.attr("class","axis")
+					.attr("transform", "translate(" + (xAxisLoc) + "," + 0 + ")")
+					.call(xAxis);
+
+				handshake.append("g")
+					.attr("class","axis")
+					.attr("transform", "translate("+yAxisLoc+",0)")
+					.call(yAxis);
+
+				drawTCPHandshake(dataset,handshake,xAxisLoc,yAxisLoc);
+			});
+		}
+			
+			function drawTCPHandshake(dataset,handshake,xaxis,yaxis){
+				console.log(dataset);
+				lineData = [];
+				clientIP = dataset[0].srcIP;
+				clientPort = dataset[0].srcport
+				serverIP = dataset[0].destIP;
+				serverPort = dataset[0].dstport;
+				rtt = dataset[1].timestamp - dataset[0].timestamp;
+				total_time = dataset[dataset.length-1].timestamp - dataset[0].timestamp + rtt;
+				counter = -1;
+				//alternating the start point of the line, calculating xLoc
+				for (i=0;i<dataset.length-1;i++){
+					yTime = parseFloat(dataset[i].timestamp);
+					lineData.push({"x":yaxis, "y":30/total_time*yTime+50});
+					lineData.push({"x":xaxis, "y":30/total_time*yTime+rtt/2+50});
+				}
+				//lineData.push({"x":, "y":})
+				drawArrowHead(lineData,handshake);
+			}
+
+			function drawUDPConenection(){
+
+			}
+
+			function drawArrowHead(lineData,handshake){
+
+ 				console.log(lineData);
+				lineFunction = d3.svg.line()
+					.x(function(d) { return d.x; })
+					.y(function(d) { return d.y; })
+					.interpolate("linear");
+
+				handshake.append("defs")
+						 .append("marker")
+						 .attr("id", "arrowhead")
+						 .attr("refX", 140)
+						 .attr("refY", 53)
+						 .attr("markerWidth", 6)
+						 .attr("markerHeight", 4)
+						 .attr("orient", "auto");
+						 
+				//find out why arrowhead is not working
+				handshake.append("path")
+						.attr("d",lineFunction(lineData))
+						.attr("stroke", "blue")
+						.attr("stroke-width",2)
+						.attr("fill","none")
+						.attr("marker-end","url(#arrowhead)");
+			}
+
+		</script>
+	</body>
+</html>
