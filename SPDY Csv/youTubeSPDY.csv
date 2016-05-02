@@ -1,0 +1,3 @@
+"frame","dstport","srcport","destIP","srcIP","timestamp","seqNo","ackNo","isSyn","isAck","isFin","isTLS","length","fromClient","fromServer","windowSize"
+"1","443","53251","172.217.5.14","172.24.21.152","0","3055563964","2775406357","false","true","false","false","20","true","false","3912"
+"NULL","NULL","NULL","NULL","NULL","NULL","NULL","NULL","NULL","NULL","NULL","NULL","NULL","NULL","NULL","NULL"

@@ -19,19 +19,25 @@ public class SpdyParser implements ParsePacketInfo {
 	public long dstPort, srcPort, packetLength, frameNo, time, seq, ack,windowSize;
 	public String srcIP, dstIP;
 	public boolean isAck, isSyn, isFin, fromServer, fromClient = true, isTls;
-	static String outFileName = "SPDY.csv";
+	static String outFileName = "translateHTTP.csv";
 	public static boolean countFlag = false;
 	public static void main(String args[]) throws Exception {
 		toDoPackets = new LinkedList<Long>();
 		final StringBuilder errbuf = new StringBuilder(); // For any error msgs
 		if (args.length < 1) {
-			filename = "C:\\Users\\shweta\\Documents\\Study Material\\Networks\\Project\\captures\\FinalCaptures\\imageSearchSPDY.pcap";
+			filename = "C:\\Users\\shweta\\Documents\\Study Material\\Networks\\Project\\captures\\FinalCaptures\\translateHTTP.pcap";
 		} else
 			filename = args[0];
 		CreateCSV outFile = new CreateCSV(outFileName);
 		
 		int counter = 0;
 		long timeDiff = 0;
+		boolean threshold = false;
+		long totalPacketSize = 0;
+		long lastObservedTime = 0;
+		long endPacketTm = 0;
+		double throughput;
+		
 		
 		PcapPacketArrayList packets = readOfflineFiles(filename);
 		final Tcp tcp = new Tcp();
@@ -76,6 +82,16 @@ public class SpdyParser implements ParsePacketInfo {
 						}
 						else{
 							obj.time -= timeDiff;
+						}
+						
+						if(obj.time - lastObservedTime > 10000 ){
+							threshold = true;
+						}
+						
+						if(!threshold){
+							System.out.println("Frame no. is : " + obj.frameNo);
+							totalPacketSize += packet.size();
+							endPacketTm = obj.time;
 						}
 
 						Byte publicFlag = packet.getByte(47);
@@ -136,6 +152,9 @@ public class SpdyParser implements ParsePacketInfo {
 			outFile.insertEmpty();
 			countFlag = true;
 		}
+		throughput = totalPacketSize/endPacketTm;
+		System.out.println("End packet is : " + endPacketTm);
+		System.out.println("Throughput is : " + throughput*1000 + " bytes per sec.");
 	}
 
 	public static int getBit(int position, byte ID) {

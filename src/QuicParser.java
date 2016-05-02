@@ -21,9 +21,9 @@ import org.jnetpcap.util.PcapPacketArrayList;
 
 public class QuicParser {
 
-	public static String outFileName_handshake = "imageSearchQUIC_handshake.csv";
-	public static String outFileName_reconnection = "imageSearchQUIC_reconnection.csv";
-	public static String outFileName = "imageSearchQUIC.csv";
+	public static String outFileName_handshake = "youTubeQUIC_handshake.csv";
+	public static String outFileName_reconnection = "youTubeQUIC_reconnection.csv";
+	public static String outFileName = "youTubeQUIC.csv";
 
 	public static void main(String args[]) throws UnsupportedEncodingException {
 
@@ -36,13 +36,18 @@ public class QuicParser {
 		CreateCSV outFile_handshake = new CreateCSV(outFileName_handshake);
 		CreateCSV outFile_reconnection = new CreateCSV(outFileName_reconnection);
 
+		boolean threshold = false;
+		long totalPacketSize = 0;
+		long endPacketTm = 0;
+		double throughput;
+		
 		int counter = 0;
 		long timeDiff = 0;
 		Set<String> clients = new HashSet<String>();
 		Set<String> servers = new HashSet<String>();
 		Map<String, Connection> connections = new HashMap<String, Connection>();
 		List<PacketInfo> packetsInfo = new ArrayList<PacketInfo>();
-		PcapPacketArrayList packets = readOfflineFiles("C:\\Users\\shweta\\Documents\\Study Material\\Networks\\Project\\captures\\FinalCaptures\\imageSearchQUIC.pcap");
+		PcapPacketArrayList packets = readOfflineFiles("C:\\Users\\shweta\\Documents\\Study Material\\Networks\\Project\\captures\\FinalCaptures\\youTubeQUIC_1.pcap");
 		final Udp udp = new Udp();
 		Ip4 ip = new Ip4();
 		Payload pl = new Payload();
@@ -90,6 +95,16 @@ public class QuicParser {
 					else{
 						timeStamp -= timeDiff;
 					}
+					
+					if(timeStamp - endPacketTm > 10000 ){
+						threshold = true;
+					}
+					
+					if(!threshold){
+						totalPacketSize += packet.size();
+						endPacketTm = timeStamp;
+					}
+					
 					Byte publicFlag = packet.getByte(42);
 					String publicFlags = Integer.toBinaryString(publicFlag);
 					System.out.println("Public flags are: " + publicFlags);
@@ -156,18 +171,6 @@ public class QuicParser {
 					packetInfo.setTimeStamp(timeStamp);
 					packetInfo.setCid(cid);
 					packetInfo.setSeqNo(seqNo);
-
-					//////////////////////////////
-
-					// JHeader header = new Ip4();
-
-					/*
-					 * for (JField field: pl.getFields()) {
-					 * System.out.printf("field=%s\n", field.getName()); }
-					 * System.out.println("Payload size is : " + pl.size());
-					 */
-
-					//////////////////////////////////////
 
 					int messageAuthenticationPosition = seqStart + seqLength + 1;
 					int messageAuthLength = 12;
@@ -396,21 +399,15 @@ public class QuicParser {
 
 			}
 		}
-//		System.out.println("number of quic packets = " + packetsInfo.size());
-//		Connection conn = connections.get("10.0.2.15216.58.217.164");
-//		List<PacketInfo> connPackets = conn.getClientToServerPackets();
-//		System.out.println("number of client to server packets : " + connPackets.size());
-//		System.out.println("number of server to client packets : " + conn.getServerToClientPackets().size());
-//		for (int i = 0; i < connPackets.size(); i++) {
-//			System.out.println("Frame no. is : " + connPackets.get(i).frameNo);
-//		}
+		
+		throughput = totalPacketSize/endPacketTm;
+		System.out.println("End packet time is : " + endPacketTm);
+		System.out.println("Throughput is : " + throughput*1000 + " bytes per sec");
 
 		long lastPacketTime = 0;
 		boolean reconnFlag = false;
 		boolean handshakeFlag = false;
 		int chloHandshake = 0;
-		int handshakeCount = 0;
-		int reconnCount = 0;
 		for (PacketInfo pkt : packetsInfo) {
 			outFile.writeToFile(pkt);
 			if (handshakeFlag && !reconnFlag) {
@@ -424,18 +421,18 @@ public class QuicParser {
 					if (pkt.getSCID() == null) {
 						outFile_handshake.writeToFile(pkt);
 						chloHandshake++;
-						handshakeCount++;
+						
 					} else if (chloHandshake == 1 && pkt.getSCID() != null) {
 						outFile_handshake.writeToFile(pkt);
 						chloHandshake++;
-						handshakeCount++;
+						
 						handshakeFlag = true;
 					}
 				}
 				if (pkt.isRej) {
 					if (chloHandshake == 1) {
 						outFile_handshake.writeToFile(pkt);
-						handshakeCount++;
+						
 					}
 				}
 			}
@@ -444,7 +441,7 @@ public class QuicParser {
 					if (pkt.getSCID() != null && pkt.getTimeStamp() - lastPacketTime > 30000) {
 						outFile_reconnection.writeToFile(pkt);
 						reconnFlag = true;
-						reconnCount++;
+						
 					}
 				}
 			}
