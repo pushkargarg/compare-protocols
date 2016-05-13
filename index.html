@@ -4,33 +4,421 @@
 		<meta charset="utf-8">
 		<title>D3 Test</title>
 		<script src="//d3js.org/d3.v3.min.js"></script>
+        <script src="./xcharts.min.js"></script>
 		<link rel="stylesheet" type="text/css" href="./css/styles.css">
+		<link rel="stylesheet" type="text/css" href="./css/xcharts.css">
 	</head>
 	<body>
-		<div id="http" class="protocol" align="left" color="red"></div>
+    <select name="Sampling" id="sampling">
+    <option value="handshake">Handshake</option>
+    <option value="reconnection">Reconnection Establishment</option>
+    <option value="performance">Page Load Time</option>
+    <option value="cwnd">Congestion Window Size</option>
+    </select>
+	
+	<select name="Websites" id="websites">
+    <option value="google">Google</option>
+    <option value="gmail">Gmail</option>
+    <option value="facebook">Facebook</option>
+    </select>
+
+        
+        <div id="container">
+        <div id="info" align="left"><p id="infoData"></p></div>
+		<div id="http" align="center" color="red">HTTP</div>
+		<div id="spdy" align="center" color="red">SPDY</div>
+		<div id="quic" align="center" color="red">QUIC</div>
+        </div>
+        
+        <div id="performance">
+            <p align="center">PAGE LOAD TIME</p><div id="perf" align="center"></div>
+        </div>
+        
+        <div id="cwnd">
+            <p align="center">Congestion Window Size</p><div id="perfcwnd" align="center"></div>
+        </div>
+        
 		<div class="protocol" align="left" color="blue"></div>
 		<div class="protocol" align="left" color="green"></div>
 		<script type="text/javascript">
 			
-		drawHTTPConnection();
-		drawQUICConnection();
+        init()    
+        fileHttp = "./files/http";
+		fileSpdy = "./files/SPDY";
+		fileQuic = "./files/QUIC";
+		website = "google";
+		num = 0;
+		drawHTTPConnection(fileHttp+website+num +".csv", "#http");
+		drawHTTPConnection(fileSpdy+website+num +".csv", "#spdy");
+        
+		drawHTTPConnection(fileQuic+website+num +".csv", "#quic");
+        function init() {
+			d3.select("#websites")
+			.on("change", function(d,i) {
+				dropdown = document.getElementById('websites');
+				website = dropdown.options[dropdown.selectedIndex].value;
+				console.log(website);
+				if(dropdown.selectedIndex > 1)
+				{
+					d3.select("#quic").style("visibility", "hidden");
+				}
+				else
+				{
+					d3.select("#quic").style("visibility", "visible");
+				}
+				drawHTTPConnection(fileHttp+website+num+".csv", "#http");
+				drawHTTPConnection(fileSpdy+website+num+".csv", "#spdy");
+				drawHTTPConnection(fileQuic+website+num+".csv", "#quic");
+				
+				});
+            d3.select("#sampling")
+            .on("change", function(d,i) {
+            if(document.getElementById('sampling').selectedIndex == 2)
+            {
+				d3.select("#quic").style("visibility", "hidden");
+				d3.select("#websites").style("visibility", "hidden");
+                d3.select("#container")
+                    .style("visibility", "hidden");
+                d3.select("#performance")
+                    .style("visibility", "visible");
+                d3.select("#cwnd")
+                    .style("visibility", "hidden");
+                drawPerformance();
+            }
+            else
+            if(document.getElementById('sampling').selectedIndex == 3)
+            {
+				d3.select("#quic").style("visibility", "hidden");
+				d3.select("#websites").style("visibility", "hidden");
+                d3.select("#container")
+                    .style("visibility", "hidden");
+                d3.select("#performance")
+                    .style("visibility", "hidden");
+                d3.select("#cwnd")
+                    .style("visibility", "visible");
+                drawCWND();
+                
+            }
+			else
+			{
+				
+				d3.select("#quic").style("visibility", "visible");
+				d3.select("#websites").style("visibility", "visible");
+				num = document.getElementById('sampling').selectedIndex;
+				drawHTTPConnection(fileHttp+website+num+".csv", "#http");
+				drawHTTPConnection(fileSpdy+website+num+".csv", "#spdy");
+				drawHTTPConnection(fileQuic+website+num+".csv", "#quic");
+				d3.select("#container")
+                    .style("visibility", "visible");
+                d3.select("#performance")
+                    .style("visibility", "hidden");
+                d3.select("#cwnd")
+                    .style("visibility", "hidden");
+            }
+            
+        });
+        }
+        
+        
+        function drawCWND() {
+        	var margin = {
+        		top : 20,
+        		right : 20,
+        		bottom : 30,
+        		left : 50
+        	},
+        	width = 960 - margin.left - margin.right,
+        	height = 500 - margin.top - margin.bottom;
 
-		function drawHTTPConnection() {
+        	var x = d3.scale.linear()
+        		.range([0, width]);
+
+        	var y = d3.scale.linear()
+        		.range([height, 0]);
+
+        	var xAxis = d3.svg.axis()
+        		.scale(x)
+        		.orient("bottom");
+
+        	var yAxis = d3.svg.axis()
+        		.scale(y)
+        		.orient("left");
+            var nonZeroTime = 0;
+            var nonZerocwnd = 0;
+            
+        	var line = d3.svg.line()
+        		.x(function (d) {
+        			return d.time/8;
+        		})
+        		.y(function (d) {
+        			return height - (d.cwnd / 40);
+        		})
+                .interpolate("bundle");
+                
+            var line2 = d3.svg.line()
+        		.x(function (d) {
+                    if(d.time2 == 0)
+                    {
+                        return nonZeroTime/15;
+                    }
+                    nonZeroTime = d.time2;
+        			return d.time2/15;
+        		})
+        		.y(function (d) {
+                    if(d.cwnd2 == 0)
+                        return height - (nonZerocwnd/40);
+                    nonZerocwnd = d.cwnd2;
+        			return height - (d.cwnd2/40);
+        		})
+                .interpolate("bundle");
+			d3.selectAll("#perfcwnd > *").remove();
+        	var svg = d3.select("#perfcwnd").append("svg")
+        		.attr("width", width + margin.left + margin.right)
+        		.attr("height", height + margin.top + margin.bottom)
+        		.append("g")
+        		.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+        	d3.csv("./files/facebookHTTP.csv", function (error, data) {
+        		if (error)
+        			throw error;
+                x.domain(d3.extent(data, function (d) {
+        				return d.time;
+        			}));
+        		y.domain(d3.extent(data, function (d) {
+        				return d.cwnd;
+        			}));
+
+        		svg.append("g")
+        		.attr("class", "x axis")
+        		.attr("transform", "translate(0," + height + ")")
+                .call(xAxis);
+
+        		svg.append("g")
+        		.attr("class", "y axis")
+        		.call(yAxis)
+        		.append("text")
+        		.attr("transform", "rotate(-90)")
+        		.attr("y", 6)
+        		.attr("dy", ".71em")
+        		.style("text-anchor", "end")
+        		.text("BYTES");
+                
+                svg.append("text")
+				.attr("text-anchor", "middle")
+				.attr("transform", "translate(" + -(margin.left/2) + "," + (height / 2) + ")rotate(-90)")
+				.text("Congestion Window Size")
+                
+                svg.append("text")
+				.attr("text-anchor", "middle")
+				.attr("transform", "translate(" + (width/2) + "," + (height + 20 )+")")
+				.text("Time")
+
+
+
+        		svg.append("path")
+        		.datum(data)
+        		.attr("class", "line")
+        		.attr("d", line);
+                
+                svg.append("path")
+                .datum(data)
+        		.attr("class", "line2")
+        		.attr("d", line2);
+                var leg = [{"color":"red","type":"SPDY"}, {"color":"blue","type":"HTTP"}];
+                var legend = svg.selectAll(".legend")
+					.data(leg)
+					.enter().append("g")
+					.attr("class", "legend")
+					.attr("transform", function (d, i) {
+						return "translate(0," + i * 20 + ")";
+					});
+
+				legend.append("rect")
+				.attr("x", width - 18)
+				.attr("width", 18)
+				.attr("height", 18)
+				.style("fill", function(d) {
+                    return d.color;
+                });
+
+				legend.append("text")
+				.attr("x", width - 24)
+				.attr("y", 9)
+				.attr("dy", ".35em")
+				.style("text-anchor", "end")
+				.text(function (d) {
+					return d.type;
+				});
+        	});
+
+        	
+        }
+        
+        
+        function drawPerformance() {
+            var dataset = [];
+			
+			
+			var margin = {
+				top : 20,
+				right : 20,
+				bottom : 30,
+				left : 40
+			},
+			width = 960 - margin.left - margin.right,
+			height = 500 - margin.top - margin.bottom;
+
+			var x0 = d3.scale.ordinal()
+				.rangeRoundBands([0, width], .1);
+
+			var x1 = d3.scale.ordinal();
+
+			var y = d3.scale.linear()
+				.range([height, 0]);
+
+			var color = d3.scale.ordinal()
+				.range(["#98abc5", "#6b486b",  "#d0743c", "#ff8c00"]);
+
+			var xAxis = d3.svg.axis()
+				.scale(x0)
+				.orient("bottom");
+
+			var yAxis = d3.svg.axis()
+				.scale(y)
+				.orient("left")
+				.tickFormat(d3.format(".2s"));
+			d3.selectAll("#perf > *").remove();
+			var svg = d3.select("#perf").append("svg")
+				.attr("width", width + margin.left + margin.right)
+				.attr("height", height + margin.top + margin.bottom)
+				.append("g")
+				.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+			d3.csv("./files/PageLoad.csv", function (data) {
+				dataset = data;
+				var protcall = d3.keys(data[0]).filter(function (key) {
+						return key !== "website";
+					});
+
+				data.forEach(function (d) {
+					d.throughput = protcall.map(function (name) {
+							return {
+								name : name,
+								value : +d[name]
+							};
+						});
+				});
+
+				x0.domain(data.map(function (d) {
+						return d.website;
+					}));
+                    
+				x1.domain(protcall).rangeRoundBands([0, x0.rangeBand()]);
+
+				y.domain([0, d3.max(data, function (d) {
+							return d3.max(d.throughput, function (d) {
+								return d.value;
+							});
+						})]);
+
+				svg.append("g")
+				.attr("class", "x axis")
+				.attr("transform", "translate(0," + height + ")")
+				.call(xAxis);
+
+				svg.append("g")
+				.attr("class", "y axis")
+				.call(yAxis)
+				.append("text")
+				.attr("transform", "rotate(-90)")
+				.attr("y", 15)
+				.attr("dy", ".71em")
+				.style("text-anchor", "end")
+				.text("Pageload");
+
+                svg.append("text")
+				.attr("text-anchor", "middle")
+				.attr("transform", "translate(" + -(margin.left/2) + "," + (height / 2) + ")rotate(-90)")
+				.text("Page Load time (in seconds)")
+                
+				var state = svg.selectAll(".state")
+					.data(data)
+					.enter().append("g")
+					.attr("class", "state")
+					.attr("transform", function (d) {
+						return "translate(" + x0(d.website) + ",0)";
+					});
+
+				state.selectAll("rect")
+				.data(function (d) {
+					return d.throughput;
+				})
+				.enter().append("rect")
+				.attr("width", x1.rangeBand())
+				.attr("x", function (d) {
+					return x1(d.name);
+				})
+				.attr("y", function (d) {
+					return y(d.value);
+				})
+				.attr("height", function (d) {
+					return height - y(d.value);
+				})
+				.style("fill", function (d) {
+					return color(d.name);
+				});
+
+                state.append("text")
+                .attr("x", 60)
+                .attr("y", height+20)
+                .attr("dy", ".35em")
+				.style("text-anchor", "end")
+				.text(function (d) {
+					return d.website;
+				});
+                
+				var legend = svg.selectAll(".legend")
+					.data(protcall.slice().reverse())
+					.enter().append("g")
+					.attr("class", "legend")
+					.attr("transform", function (d, i) {
+						return "translate(0," + i * 20 + ")";
+					});
+
+				legend.append("rect")
+				.attr("x", width - 18)
+				.attr("width", 18)
+				.attr("height", 18)
+				.style("fill", color);
+
+				legend.append("text")
+				.attr("x", width - 24)
+				.attr("y", 9)
+				.attr("dy", ".35em")
+				.style("text-anchor", "end")
+				.text(function (d) {
+					return d;
+				});
+                
+                
+                
+            });
+        }
+        
+		function drawHTTPConnection(fileName,id) {
 			var dataset = [];
 			var w = 400;
 			var h = 400;
 			var padding = 30;
-
-			var handshake = d3.select("#http")
+			d3.selectAll(id+" > *").remove();
+			var handshake = d3.select(id)
 				.append("svg")
 				.attr("display", "block")
 				.attr("x", 100)
 				.attr("y", 50)
 				.attr("width", w)
 				.attr("height", h);
-			d3.csv("./files/http.csv", function (data) {
+			d3.csv(fileName, function (data) {
 				dataset = data;
-				console.log(dataset.length);
 
 				//making two parallel axes
 				var xScale = d3.scale.linear()
@@ -74,147 +462,146 @@
 				.attr("transform", "translate(" + (yAxisLoc - (padding / 2)) + "," + (h / 2) + ")rotate(-90)")
 				.text("Client")
 
-				drawTCPHandshake(dataset, handshake, xAxisLoc, yAxisLoc);
+                drawHandshake(dataset, handshake, xAxisLoc, yAxisLoc, id);
+                
 			});
 		}
-
-		function drawQUICConnection() {
-			var dataset = [];
-			var w = 400;
-			var h = 400;
-			var padding = 30;
-
-			var handshake = d3.select("#http")
-				.append("svg")
-				.attr("display", "block")
-				.attr("x", 100)
-				.attr("y", 50)
-				.attr("width", w)
-				.attr("height", h);
-			d3.csv("./files/googleQUIC_handshake.csv", function (data) {
-				dataset = data;
-				console.log(dataset.length);
-
-				//making two parallel axes
-				var xScale = d3.scale.linear()
-					.domain([30, 0])
-					.range([h - padding, padding]);
-
-				var yScale = d3.scale.linear()
-					.domain([30, 0])
-					.range([h - padding, padding]);
-
-				var xAxis = d3.svg.axis()
-					.scale(xScale)
-					.ticks(0)
-					.orient("right");
-
-				var yAxis = d3.svg.axis()
-					.scale(yScale)
-					.ticks(0)
-					.orient("left");
-
-				xAxisLoc = w - 2 * padding;
-				yAxisLoc = 2 * padding;
-
-				//create two vertical axes for both client and server
-				handshake.append("g")
-				.attr("class", "axis")
-				.attr("transform", "translate(" + (xAxisLoc) + "," + 0 + ")")
-				.call(xAxis);
-
-				handshake.append("g")
-				.attr("class", "axis")
-				.attr("transform", "translate(" + yAxisLoc + ",0)")
-				.call(yAxis);
-
-				drawTCPHandshake(dataset, handshake, xAxisLoc, yAxisLoc);
-			});
-		}
-
-		function drawTCPHandshake(dataset, handshake, xaxis, yaxis) {
-			console.log(dataset);
+        
+		function drawHandshake(dataset, handshake, xaxis, yaxis, id) {
 			lineData = [];
 			clientIP = dataset[0].srcIP;
 			clientPort = dataset[0].srcport
-				serverIP = dataset[0].destIP;
+            serverIP = dataset[0].destIP;
 			serverPort = dataset[0].dstport;
 			rtt = dataset[1].timestamp - dataset[0].timestamp;
-			total_time = dataset[dataset.length - 1].timestamp - dataset[0].timestamp + rtt;
-			counter = -1;
+			total_time = dataset[dataset.length - 1].timestamp - dataset[0].timestamp;
 			//alternating the start point of the line, calculating xLoc
-			for (i = 0; i < dataset.length - 1; i++) {
-				yTime = parseFloat(dataset[i].timestamp);
-				lineData.push({
-					"x" : yaxis,
-					"y" : 30 / total_time * yTime + 50
-				});
-				lineData.push({
-					"x" : xaxis,
-					"y" : 30 / total_time * yTime + rtt / 2 + 50
-				});
-			}
-			//lineData.push({"x":, "y":})
-			drawArrowHead(lineData, handshake);
+			for (i = 0; i < dataset.length ; i++) {
+                yTime = parseFloat(dataset[i].timestamp);
+                rTime = parseFloat(dataset[i].replytime);
+                if(dataset[i].srcIP === clientIP)
+                {
+                    lineData.push({"x1":yaxis,"y1":300 / total_time * yTime + 50,"x2":xaxis,"y2":300 / total_time * (yTime + ((rTime-yTime)/2)) + 50,"data":dataset[i]});
+                }
+                else
+                {
+                    lineData.push({"x1":xaxis,"y1":300 / total_time * (yTime - ((yTime-rTime)/2)) + 50,"x2":yaxis,"y2":300 / total_time * yTime + 50,"data":dataset[i]});
+                }
+							}
+			if (id == "#quic")
+				drawArrowHeadUDP(lineData,handshake);
+			else
+				drawArrowHeadTCP(lineData, handshake);
 		}
-
-		function drawUDPConenection() {}
-
-		function drawArrowHead(lineData, handshake) {
+		
+       
+        function drawArrowHeadUDP(lineData, handshake) {
             
-            console.log("-/-/-/-/-");
-			console.log(lineData);
-            console.log("-/-/-/-/-");
-            
-            for(i = 0; i < lineData.length-1; i++)
-            {
-                handshake.append("line")
-                    .attr("x1", lineData[i].x)
-                    .attr("y1", lineData[i].y)
-                    .attr("x2", lineData[i+1].x)
-                    .attr("y2", lineData[i+1].y)
-                    .attr("stroke-width", 2)
-                    .attr("stroke", "black")
-                    .on("click", function(d,i) {
-                        console.log(d, i);
-                        console.log(lineData[i]);
+                lineGroup = handshake.append("g");
+                var lines = lineGroup.selectAll("line")
+                    .data(lineData)
+                    .enter()
+                    .append("line");
+                var lineAttr = lines
+                    .attr("x1", function(d,i){return d.x1})
+                    .attr("y1", function(d,i){return d.y1})
+                    .attr("x2", function(d,i){return d.x2})
+                    .attr("y2", function(d,i){return d.y2})
+                    .style("stroke-dasharray", function(d,i){
+                        if(d.data.isChlo === "TRUE" || d.data.isRej == "TRUE")
+                            return "3, 3"
+                        else
+                            return "0.1, 0.1"
+                    })
+                    .attr("stroke-width", 1.5)
+                    .attr("stroke", function(d,i) {
+                    if(d.data.isChlo === "TRUE")
+                    {
+                        return "blue";
+                    }
+                    if(d.data.isRej == "TRUE")
+                    {
+                        return "red"
+                    }
+                    return "green"
+                    
+                    })
+                    .on("mouseover", function(d,i) {
+                        var outString = "Source IP: "+d.data.srcIP + "<br\>"+
+                                        "Source Port: "+d.data.srcport + "<br\>"+
+                                        "Destination IP: "+d.data.destIP + "<br\>"+
+                                        "Destination Port: "+d.data.dstport + "<br\>";
+                        if(d.data.isChlo === "TRUE")
+                        {
+                            outString += "CHLO ";
+                        }
+                        if(d.data.isRej === "TRUE")
+                        {
+                            outString += "REJ ";
+                        }                     
+                        d3.select("#infoData").html(outString);
                     });
-            }
             
-			/*lineFunction = d3.svg.line()
-				.x(function (d) {
-					return d.x;
-				})
-				.y(function (d) {
-					return d.y;
-				})
-				.interpolate("linear");
-
-			handshake.append("defs")
-			.append("marker")
-			.attr("id", "arrowhead")
-			.attr("refX", 140)
-			.attr("refY", 53)
-			.attr("markerWidth", 6)
-			.attr("markerHeight", 4)
-			.attr("orient", "auto");
-
-            console.log("-/-/-/-/-000");
-			console.log(lineFunction(lineData));
-            console.log("-/-/-/-/-000");
-			//find out why arrowhead is not working
-			handshake.append("path")
-			.attr("id", function (d, i) {
-				console.log("***"+i);
-				return "path_0";
-			})
-			.attr("d", lineFunction(lineData))
-			.attr("stroke", "blue")
-			.attr("stroke-width", 2)
-			.attr("fill", "none")
-			.attr("marker-end", "url(#arrowhead)");
-            */
+            
 		}
+            
+        function drawArrowHeadTCP(lineData, handshake) {
+            
+
+            
+                lineGroup = handshake.append("g");
+                var lines = lineGroup.selectAll("line")
+                    .data(lineData)
+                    .enter()
+                    .append("line");
+                var lineAttr = lines
+                    .attr("x1", function(d,i){return d.x1})
+                    .attr("y1", function(d,i){return d.y1})
+                    .attr("x2", function(d,i){return d.x2})
+                    .attr("y2", function(d,i){return d.y2})
+                    .style("stroke-dasharray", function(d,i){
+                        if(d.data.isSyn === "TRUE")
+                            return "3, 3"
+                        else
+                            return "0.1, 0.1"
+                    })
+                    .attr("stroke-width", 1.5)
+                    .attr("stroke", function(d,i) {
+                    if(d.data.isSyn === "TRUE" && d.data.isAck === "TRUE")
+                    {
+                        return "blue";
+                    }                    
+                    if(d.data.isSyn === "TRUE")
+                    {
+                        return "blue";
+                    }
+                    if(d.data.isTLS && d.data.isTLS == "TRUE")
+                    {
+                        return "red"
+                    }
+                    if(d.data.isAck === "TRUE")
+                    {
+                            return "green";
+                    }
+                    
+                    })
+                    .on("mouseover", function(d,i) {
+                        var outString = "Source IP: "+d.data.srcIP + "<br\>"+
+                                        "Source Port: "+d.data.srcport + "<br\>"+
+                                        "Destination IP: "+d.data.destIP + "<br\>"+
+                                        "Destination Port: "+d.data.dstport + "<br\>";
+                        if(d.data.isSyn === "TRUE")
+                        {
+                            outString += "SYN ";
+                        }
+                        if(d.data.isAck === "TRUE")
+                        {
+                            outString += "ACK ";
+                        }                        
+                        d3.select("#infoData").html(outString);
+                    });
+		}
+            
 		</script>
 	</body>
 </html>

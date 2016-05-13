@@ -6,3 +6,71 @@
 		}
 
 .axis text { display: none; }
+
+#container {
+    width:1200px;
+    clear:both;
+    position: absolute;
+    top:20px;
+    left: 0px;
+}
+
+#http {
+    width:400px;
+    float:left;
+}
+#spdy {
+    width:400px;
+    float:left;
+}
+
+#quic {
+    width:400px;
+    float:left;
+}
+
+#info {
+    height:100px;
+}
+
+#performance {
+    visibility:hidden;
+    width:1200px;
+    clear:both;
+    position: absolute;
+    top:50px;
+    left: 0px;
+}
+
+#cwnd {
+    visibility:hidden;
+    width:1200px;
+    clear:both;
+    position: absolute;
+    top:50px;
+    left: 0px;
+}
+
+
+.line {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
+.line2 {
+  fill: none;
+  stroke: red;
+  stroke-width: 1.5px;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.bar {
+  fill: steelblue;
+}

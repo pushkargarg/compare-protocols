@@ -1,4 +1,4 @@
-frame,dstport,srcport,destIP,srcIP,rerplytime,timestamp,seqNo,ackNo,isSyn,isAck,isFin,isTLS,length,fromClient,fromServer,windowSize
+frame,dstport,srcport,destIP,srcIP,replytime,timestamp,seqNo,ackNo,isSyn,isAck,isFin,isTLS,length,fromClient,fromServer,windowSize
 1,443,53163,172.217.5.5,172.24.21.152,5,0,2166944440,0,TRUE,FALSE,FALSE,FALSE,32,TRUE,FALSE,8192
 2,53163,443,172.24.21.152,172.217.5.5,0,5,28942859,2166944441,TRUE,TRUE,FALSE,FALSE,32,FALSE,TRUE,42900
 3,443,53163,172.217.5.5,172.24.21.152,12,5,2166944441,28942860,FALSE,TRUE,FALSE,FALSE,20,TRUE,FALSE,4140
